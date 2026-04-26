@@ -1,0 +1,8 @@
+source,target,value
+Énergie,Industrie,120
+Énergie,Résidentiel,80
+Industrie,Export,45
+Industrie,Stockage,30
+Industrie,Pertes,45
+Résidentiel,Chauffage,50
+Résidentiel,Électricité,30

@@ -1,0 +1,99 @@
+/* Compléments locaux : le DSFR fournit la base via CDN */
+
+.sankey-chart-wrap {
+  min-height: 520px;
+  width: 100%;
+  border: 1px solid var(--border-default-grey, #ddd);
+  border-radius: 0;
+  background: var(--background-alt-grey, #f6f6f6);
+}
+
+.sankey-chart-wrap .js-plotly-plot,
+.sankey-chart-wrap .plotly {
+  width: 100% !important;
+}
+
+/* Libellés de valeur sur les rubans Sankey (SVG) — taille via attribut font-size dans le JS */
+.sankey-chart-wrap svg text.sankey-app-flow-value {
+  font-weight: 700;
+  font-family: Marianne, Arial, sans-serif;
+  fill: #161616;
+}
+
+.fr-callout--privacy {
+  border-left: 4px solid var(--border-action-high-blue-france);
+}
+
+.sankey-upload-zone {
+  position: relative;
+}
+
+.sankey-upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+.sankey-file-statut.sankey-file-statut--idle {
+  color: var(--text-mention-grey, #666);
+}
+
+.sankey-file-statut.sankey-file-statut--ok {
+  color: var(--text-default-success, #18753c);
+  font-weight: 500;
+}
+
+.sankey-perso-actions .fr-btn {
+  margin-top: 0 !important;
+}
+
+.sankey-table-chip-cell {
+  vertical-align: middle;
+  width: 3rem;
+}
+
+.sankey-color-chip {
+  display: inline-block;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--border-default-grey, #3a3a3a);
+  box-sizing: border-box;
+  vertical-align: middle;
+}
+
+.sankey-file-input-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.sankey-appearance {
+  border: 1px solid var(--border-default-grey, #ddd);
+  padding: 1rem 1.25rem;
+  background: var(--background-alt-grey, #f6f6f6);
+}
+
+.sankey-color-select-cell {
+  vertical-align: middle;
+  min-width: 14rem;
+}
+
+#node-color-tbody .fr-select,
+#link-color-tbody .fr-select {
+  max-width: 100%;
+}
+
+/* Évite de masquer les listes natives des <select> (ancêtre overflow scroll). */
+.sankey-color-table-wrap .fr-table__wrapper {
+  overflow: visible;
+  max-height: none;
+}
+
