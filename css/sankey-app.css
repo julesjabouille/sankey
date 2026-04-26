@@ -1,16 +1,27 @@
 /* Compléments locaux : le DSFR fournit la base via CDN */
 
+/* Hauteur généreuse pour la prévisualisation (Plotly responsive suit le conteneur). */
 .sankey-chart-wrap {
-  min-height: 520px;
   width: 100%;
+  height: clamp(26rem, 62vh, 56rem);
+  min-height: 26rem;
   border: 1px solid var(--border-default-grey, #ddd);
   border-radius: 0;
   background: var(--background-alt-grey, #f6f6f6);
+  box-sizing: border-box;
+}
+
+.sankey-chart-wrap #chart {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
 }
 
 .sankey-chart-wrap .js-plotly-plot,
 .sankey-chart-wrap .plotly {
   width: 100% !important;
+  height: 100% !important;
 }
 
 /* Libellés de valeur sur les rubans Sankey (SVG) — taille via attribut font-size dans le JS */

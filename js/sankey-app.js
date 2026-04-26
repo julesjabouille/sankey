@@ -459,17 +459,7 @@
             return e.type === 'Quotes' || e.type === 'Delimiter';
           });
           if (fatal) {
-            var quoteLike =
-              fatal.type === 'Quotes' ||
-              (fatal.message &&
-                /Trailing quote|quoted field|InvalidQuotes|Quotes/i.test(String(fatal.message)));
-            done(
-              new Error(
-                quoteLike
-                  ? 'Fournissez un CSV correspondant au modèle ci-dessous (colonnes source, target, value ; guillemets et séparateurs corrects).'
-                  : 'CSV illisible : ' + fatal.message,
-              ),
-            );
+            done(new Error('CSV illisible : ' + fatal.message));
             return;
           }
         }
@@ -1042,13 +1032,15 @@
     if (bn) bn.disabled = !!disabled;
   }
 
-  function fillColorTablePlaceholder(tbody, message) {
+  /** Pas de lignes « exemple » sur l’aperçu démo : uniquement après import CSV. */
+  function fillColorTableDemoPlaceholder(tbody) {
     tbody.innerHTML = '';
     var tr = document.createElement('tr');
     var td = document.createElement('td');
-    td.setAttribute('colspan', '3');
-    td.className = 'fr-text--sm sankey-color-table-placeholder';
-    td.textContent = message;
+    td.colSpan = 3;
+    td.className = 'fr-text--sm';
+    td.textContent =
+      'Les couleurs par flux et par nœud se règlent sur les données de votre fichier CSV importé, pas sur l’aperçu de démonstration.';
     tr.appendChild(td);
     tbody.appendChild(tr);
   }
@@ -1057,10 +1049,7 @@
     var tbody = document.getElementById('node-color-tbody');
     if (!tbody || !state.graph) return;
     if (state.isDemo) {
-      fillColorTablePlaceholder(
-        tbody,
-        'Aucun fichier CSV chargé : la liste des nœuds pour les couleurs apparaît après import.',
-      );
+      fillColorTableDemoPlaceholder(tbody);
       setColorResetButtonsDisabled(true);
       return;
     }
@@ -1131,11 +1120,7 @@
     var tbody = document.getElementById('link-color-tbody');
     if (!tbody || !state.graph) return;
     if (state.isDemo) {
-      fillColorTablePlaceholder(
-        tbody,
-        'Aucun fichier CSV chargé : la liste des flux pour les couleurs apparaît après import.',
-      );
-      setColorResetButtonsDisabled(true);
+      fillColorTableDemoPlaceholder(tbody);
       return;
     }
     var graph = getDisplaySankeyGraphResult(state.graph).g;
