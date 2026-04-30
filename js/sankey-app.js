@@ -86,6 +86,8 @@
     linkDisplayMin: 0,
     /** Taille (px) du texte des valeurs sur les rubans Sankey */
     linkValuesFontPx: 20,
+    /** exact | k | M | Md — affichage des valeurs (rubans, infobulles, export HTML) */
+    valueDisplayMode: 'exact',
   };
 
   function linkPairKey(sourceLabel, targetLabel) {
@@ -177,6 +179,10 @@
       elFontRub && String(elFontRub.value || '').trim() !== '' ? parseNumber(elFontRub.value) : NaN;
     if (!isFinite(fp)) fp = 20;
     state.linkValuesFontPx = Math.min(40, Math.max(8, Math.round(fp)));
+    var elFmt = document.getElementById('opt-format-valeurs');
+    var dm = elFmt && elFmt.value ? String(elFmt.value) : 'exact';
+    if (dm !== 'k' && dm !== 'M' && dm !== 'Md') dm = 'exact';
+    state.valueDisplayMode = dm;
   }
 
   function isLinkBelowDisplayThreshold(value) {
@@ -212,11 +218,70 @@
     }
   }
 
+  /** Groupe les chiffres par blocs de 3 (espaces : milliers, millions, milliards…). */
+  function groupIntDigitsWithSpaces(digitStr) {
+    digitStr = String(digitStr);
+    if (!/^\d+$/.test(digitStr)) return digitStr;
+    var len = digitStr.length;
+    if (len <= 3) return digitStr;
+    var first = len % 3;
+    if (first === 0) first = 3;
+    var parts = [digitStr.slice(0, first)];
+    for (var gi = first; gi < len; gi += 3) {
+      parts.push(digitStr.slice(gi, gi + 3));
+    }
+    return parts.join(' ');
+  }
+
+  /** Nombre fini → libellé FR (espaces milliers, virgule décimale). */
+  function formatNumberExactFr(n) {
+    if (!isFinite(n)) return '';
+    var num = Number(n);
+    if (Math.abs(num - Math.round(num)) < 1e-9) {
+      var ri = Math.round(num);
+      var negI = ri < 0;
+      var groupedI = groupIntDigitsWithSpaces(String(Math.abs(ri)));
+      return negI ? '-' + groupedI : groupedI;
+    }
+    var s = String(num);
+    if (/e/i.test(s)) s = String(Number(num.toPrecision(15)));
+    var neg = num < 0;
+    if (neg && s.charAt(0) === '-') s = s.slice(1);
+    var dot = s.indexOf('.');
+    var intPart = dot === -1 ? s : s.slice(0, dot);
+    var fracPart = dot === -1 ? '' : s.slice(dot + 1);
+    var grouped = groupIntDigitsWithSpaces(intPart);
+    if (neg) grouped = '-' + grouped;
+    return fracPart.length ? grouped + ',' + fracPart : grouped;
+  }
+
+  /** Une décimale après arrondi (virgule FR, espaces sur la partie entière). */
+  function formatOneDecimalFr(n) {
+    if (!isFinite(n)) return '';
+    var r = Math.round(Number(n) * 10) / 10;
+    if (!isFinite(r)) return '';
+    var neg = r < 0;
+    var abs = Math.abs(r);
+    var s = abs.toFixed(1);
+    var dot = s.indexOf('.');
+    var ip = dot === -1 ? s : s.slice(0, dot);
+    var fp = dot === -1 ? '0' : s.slice(dot + 1);
+    return (neg ? '-' : '') + groupIntDigitsWithSpaces(ip) + ',' + fp;
+  }
+
+  function formatCompactSuffix(v, divisor, unit) {
+    var q = Number(v) / divisor;
+    if (!isFinite(q)) return '';
+    return formatOneDecimalFr(q) + ' ' + unit;
+  }
+
   function formatLinkValue(v) {
     if (!isFinite(v)) return '';
-    var n = Number(v);
-    if (Math.abs(n - Math.round(n)) < 1e-9) return String(Math.round(n));
-    return String(n).replace('.', ',');
+    var mode = state.valueDisplayMode || 'exact';
+    if (mode === 'k') return formatCompactSuffix(v, 1e3, 'k');
+    if (mode === 'M') return formatCompactSuffix(v, 1e6, 'M');
+    if (mode === 'Md') return formatCompactSuffix(v, 1e9, 'Md');
+    return formatNumberExactFr(Number(v));
   }
 
   function escapeHtml(s) {
@@ -658,6 +723,7 @@
         sankeyLinkDisplayMin: state.linkDisplayMin,
         sankeyLinkValuesFontPx: state.linkValuesFontPx,
         sankeyVertical: state.verticalSankey,
+        sankeyValueDisplayMode: state.valueDisplayMode,
       },
     };
   }
@@ -729,6 +795,10 @@
       '    return "%"+("00"+c.charCodeAt(0).toString(16)).slice(-2);\n' +
       '  }).join(""));\n' +
       '}\n' +
+      'function groupIntDigitsWithSpaces(d){d=String(d);if(!/^\\d+$/.test(d))return d;var L=d.length;if(L<=3)return d;var f=L%3;if(f===0)f=3;var p=[d.slice(0,f)];for(var gi=f;gi<L;gi+=3)p.push(d.slice(gi,gi+3));return p.join(" ");}\n' +
+      'function formatNumberExactExport(n){if(!isFinite(n))return"";var v=Number(n);if(Math.abs(v-Math.round(v))<1e-9){var ri=Math.round(v),negI=ri<0,g=groupIntDigitsWithSpaces(String(Math.abs(ri)));return negI?"-"+g:g;}var s=String(v);if(/e/i.test(s))s=String(Number(v.toPrecision(15)));var neg=v<0;if(neg&&s.charAt(0)==="-")s=s.slice(1);var dot=s.indexOf("."),ip=dot===-1?s:s.slice(0,dot),fp=dot===-1?"":s.slice(dot+1),gr=groupIntDigitsWithSpaces(ip);if(neg)gr="-"+gr;return fp.length?gr+","+fp:gr;}\n' +
+      'function formatOneDecimalExport(n){if(!isFinite(n))return"";var r=Math.round(Number(n)*10)/10;if(!isFinite(r))return"";var neg=r<0,a=Math.abs(r),s=a.toFixed(1),d=s.indexOf("."),ip=d===-1?s:s.slice(0,d),fp=d===-1?"0":s.slice(d+1);return(neg?"-":"")+groupIntDigitsWithSpaces(ip)+","+fp;}\n' +
+      'function formatFlowValueExport(v,mode){if(!isFinite(v))return"";mode=mode||"exact";if(mode==="k")return formatOneDecimalExport(v/1e3)+" k";if(mode==="M")return formatOneDecimalExport(v/1e6)+" M";if(mode==="Md")return formatOneDecimalExport(v/1e9)+" Md";return formatNumberExactExport(v);}\n' +
       'var payload = JSON.parse(fromB64(' +
       JSON.stringify(b64) +
       '));\n' +
@@ -746,13 +816,15 @@
       '    if (!isFinite(fsz)) fsz = 20;\n' +
       '    fsz = Math.min(40, Math.max(8, Math.round(fsz)));\n' +
       '    var vert = !!(meta && meta.sankeyVertical);\n' +
+      '    var dispMode = (meta && meta.sankeyValueDisplayMode) ? String(meta.sankeyValueDisplayMode) : "exact";\n' +
+      '    if (dispMode !== "k" && dispMode !== "M" && dispMode !== "Md") dispMode = "exact";\n' +
       '    Array.prototype.forEach.call(svg.querySelectorAll("path.sankey-link"), function(pathEl){\n' +
       '      var d = pathEl.__data__;\n' +
       '      if (!d || !d.link || d.link.value == null) return;\n' +
       '      var v = Number(d.link.value);\n' +
       '      if (!isFinite(v)) return;\n' +
       '      if (minDisp > 0 && v < minDisp) return;\n' +
-      '      var t = (Math.abs(v - Math.round(v)) < 1e-9) ? String(Math.round(v)) : String(v).replace(".", ",");\n' +
+      '      var t = formatFlowValueExport(v, dispMode);\n' +
       '      var cx, cy;\n' +
       '      try {\n' +
       '        var bb = pathEl.getBBox();\n' +
@@ -951,6 +1023,7 @@
       sankeyLinkDisplayMin: state.linkDisplayMin || 0,
       sankeyLinkValuesFontPx: state.linkValuesFontPx,
       sankeyVertical: !!state.verticalSankey,
+      sankeyValueDisplayMode: state.valueDisplayMode || 'exact',
     });
     var html = buildStandaloneHtml(payload);
     triggerDownload(state.fileName + '.html', 'text/html;charset=utf-8', html);
@@ -1200,6 +1273,7 @@
         sankeyLinkDisplayMin: state.linkDisplayMin || 0,
         sankeyLinkValuesFontPx: state.linkValuesFontPx,
         sankeyVertical: state.verticalSankey,
+        sankeyValueDisplayMode: state.valueDisplayMode || 'exact',
       });
     }
     syncFlowValueLabels();
@@ -1215,6 +1289,7 @@
         sankeyLinkDisplayMin: state.linkDisplayMin || 0,
         sankeyLinkValuesFontPx: state.linkValuesFontPx,
         sankeyVertical: state.verticalSankey,
+        sankeyValueDisplayMode: state.valueDisplayMode || 'exact',
       });
     }
     renderPlot();
@@ -1319,6 +1394,9 @@
         updateFlowValueLabelsMetaFromUi();
       });
     }
+
+    var optFmtVal = document.getElementById('opt-format-valeurs');
+    if (optFmtVal) optFmtVal.addEventListener('change', refreshStyleFromUi);
 
     var btnReset = document.getElementById('btn-reset-couleurs-noeuds');
     if (btnReset)

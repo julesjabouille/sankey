@@ -116,8 +116,9 @@
             Personnalisation — couleurs DSFR
           </h2>
           <p class="fr-text--sm fr-mb-3w" id="zone-personnalisation">
-            Ajustez l’aperçu ci-dessus : disposition, valeurs sur les rubans (taille), seuil d’affichage des flux. Les
-            couleurs par flux et par nœud (liste déroulante et aperçu) s’affichent après chargement d’un fichier CSV.
+            Ajustez l’aperçu ci-dessus : disposition, format des nombres, valeurs sur les rubans (taille), seuil
+            d’affichage des flux. Les couleurs par flux et par nœud (liste déroulante et aperçu) s’affichent après
+            chargement d’un fichier CSV.
           </p>
           <div class="fr-fieldset__element fr-mb-3w">
             <div class="fr-grid-row fr-grid-row--gutters">
@@ -154,6 +155,19 @@
                 value="20"
               />
             </div>
+          </div>
+          <div class="fr-fieldset__element fr-mb-3w">
+            <label class="fr-label" for="opt-format-valeurs">Affichage des valeurs numériques</label>
+            <span class="fr-hint-text">
+              Rubans, infobulles et export HTML : valeur exacte avec espaces (milliers), ou arrondi avec une décimale
+              en milliers (k), millions (M) ou milliards (Md).
+            </span>
+            <select class="fr-select" id="opt-format-valeurs" name="opt-format-valeurs">
+              <option value="exact" selected>Valeur exacte (séparateurs d’échelle)</option>
+              <option value="k">Milliers (k)</option>
+              <option value="M">Millions (M)</option>
+              <option value="Md">Milliards (Md)</option>
+            </select>
           </div>
           <div class="fr-fieldset__element fr-mb-3w">
             <div class="fr-input-group">
