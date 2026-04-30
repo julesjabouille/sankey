@@ -190,6 +190,14 @@
     return t > 0 && isFinite(value) && value < t;
   }
 
+  /** SVG qui contient les tracés Sankey (même arbre que les libellés ajoutés). */
+  function getSankeySvgRoot(gd) {
+    if (!gd) return null;
+    var p = gd.querySelector('path.sankey-link');
+    if (p && p.ownerSVGElement) return p.ownerSVGElement;
+    return gd.querySelector('svg');
+  }
+
   /** Centre du ruban : milieu du rectangle englobant du flux (hauteur × largeur), entre les nœuds visuellement. */
   function pathLinkLabelAnchor(pathEl) {
     try {
@@ -420,7 +428,7 @@
     readDiagramOptions();
     var gd = document.getElementById('chart');
     if (!gd) return;
-    var svg = gd.querySelector('svg');
+    var svg = getSankeySvgRoot(gd);
     if (!svg) return;
     var prev = svg.querySelectorAll('g.sankey-app-flow-value-wrap, text.sankey-app-flow-value');
     for (var i = 0; i < prev.length; i++) {
@@ -443,6 +451,9 @@
         text.setAttribute('text-anchor', 'middle');
         text.setAttribute('dominant-baseline', 'middle');
         text.setAttribute('font-size', String(state.linkValuesFontPx));
+        text.setAttribute('fill', '#161616');
+        text.setAttribute('font-family', 'Marianne, Arial, Helvetica, sans-serif');
+        text.setAttribute('font-weight', '700');
         var parent = pathEl.parentNode || svg;
         if (state.verticalSankey) {
           /* Repère local : translate au centre du ruban puis scale(1,-1) pour annuler l’inversion Y Plotly ; le texte est réécrit en (0,0) dans ce repère. */
@@ -969,27 +980,148 @@
     else afterDraw();
   }
 
+  /** Laisse le navigateur peindre les <text> sur le SVG avant capture (Plotly seul ne les voit pas). */
+  function flushFlowLabelsThen(done) {
+    readDiagramOptions();
+    syncFlowValueLabels();
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        setTimeout(done, 72);
+      });
+    });
+  }
+
+  function triggerBlobDownload(filename, blob) {
+    if (!blob) return;
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = /\.[a-z0-9]+$/i.test(filename) ? filename : filename + '.png';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () {
+      URL.revokeObjectURL(url);
+    }, 2000);
+  }
+
+  function dataUrlToBlob(dataUrl) {
+    var parts = dataUrl.split(',');
+    if (parts.length < 2) return null;
+    var mime = parts[0].match(/:(.*?);/);
+    mime = mime ? mime[1] : 'image/png';
+    var bin = atob(parts[1]);
+    var len = bin.length;
+    var arr = new Uint8Array(len);
+    for (var i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  }
+
+  /**
+   * PNG depuis le SVG DOM (inclut les montants sur rubans). Plotly.downloadImage / toImage
+   * reconstruisent le graphe et omettent ces nœuds.
+   */
+  function rasterSankeySvgToPngBlob(svgEl, outW, outH, scale, cb) {
+    try {
+      var clone = svgEl.cloneNode(true);
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      if (!clone.getAttribute('xmlns:xlink')) {
+        clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+      }
+      clone.setAttribute('width', String(outW));
+      clone.setAttribute('height', String(outH));
+      var xml = new XMLSerializer().serializeToString(clone);
+      var svgBlob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
+      var url = URL.createObjectURL(svgBlob);
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var cw = Math.max(1, Math.round(outW * scale));
+          var ch = Math.max(1, Math.round(outH * scale));
+          var canvas = document.createElement('canvas');
+          canvas.width = cw;
+          canvas.height = ch;
+          var ctx = canvas.getContext('2d');
+          if (!ctx) {
+            URL.revokeObjectURL(url);
+            cb(new Error('Canvas 2D indisponible.'));
+            return;
+          }
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, cw, ch);
+          ctx.drawImage(img, 0, 0, cw, ch);
+          URL.revokeObjectURL(url);
+          if (canvas.toBlob) {
+            canvas.toBlob(
+              function (blob) {
+                if (!blob) cb(new Error('Export PNG vide.'));
+                else cb(null, blob);
+              },
+              'image/png',
+              0.95,
+            );
+          } else {
+            var du = canvas.toDataURL('image/png');
+            cb(null, dataUrlToBlob(du));
+          }
+        } catch (e1) {
+          URL.revokeObjectURL(url);
+          cb(e1);
+        }
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        cb(new Error('Impossible de charger le SVG pour rasterisation.'));
+      };
+      img.src = url;
+    } catch (e0) {
+      cb(e0);
+    }
+  }
+
   function exportPng() {
     var gd = document.getElementById('chart');
-    if (!window.Plotly || !gd) return;
-    return window.Plotly.downloadImage(gd, {
-      format: 'png',
-      filename: state.fileName,
-      height: 900,
-      width: 1280,
-      scale: 2,
+    if (!window.Plotly || !gd) return Promise.resolve();
+    return new Promise(function (resolve, reject) {
+      flushFlowLabelsThen(function () {
+        var svgEl = getSankeySvgRoot(gd);
+        if (!svgEl) {
+          reject(new Error('SVG Sankey introuvable.'));
+          return;
+        }
+        rasterSankeySvgToPngBlob(svgEl, 1280, 900, 2, function (err, blob) {
+          if (err || !blob) {
+            reject(err || new Error('Export PNG impossible.'));
+            return;
+          }
+          triggerBlobDownload(state.fileName + '.png', blob);
+          resolve();
+        });
+      });
     });
   }
 
   function exportSvg() {
     var gd = document.getElementById('chart');
-    if (!window.Plotly || !gd) return;
-    return window.Plotly.downloadImage(gd, {
-      format: 'svg',
-      filename: state.fileName,
-      height: 900,
-      width: 1280,
-      scale: 1,
+    if (!window.Plotly || !gd) return Promise.resolve();
+    return new Promise(function (resolve, reject) {
+      flushFlowLabelsThen(function () {
+        try {
+          var svgEl = getSankeySvgRoot(gd);
+          if (!svgEl) {
+            reject(new Error('SVG introuvable.'));
+            return;
+          }
+          var raw = new XMLSerializer().serializeToString(svgEl);
+          var xml =
+            (raw.indexOf('<?xml') === 0 ? '' : '<?xml version="1.0" encoding="UTF-8"?>\n') + raw;
+          triggerDownload(state.fileName + '.svg', 'image/svg+xml;charset=utf-8', xml);
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      });
     });
   }
 
@@ -998,12 +1130,38 @@
     if (!window.Plotly || !gd) return Promise.reject(new Error('Plotly indisponible.'));
     var JsPDF = window.jspdf && window.jspdf.jsPDF;
     if (!JsPDF) return Promise.reject(new Error('jsPDF indisponible.'));
-    return window.Plotly.toImage(gd, { format: 'png', height: 1000, width: 1400, scale: 2 }).then(function (dataUrl) {
-      var pdf = new JsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-      var pageW = pdf.internal.pageSize.getWidth();
-      var pageH = pdf.internal.pageSize.getHeight();
-      pdf.addImage(dataUrl, 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
-      pdf.save(state.fileName + '.pdf');
+    return new Promise(function (resolve, reject) {
+      flushFlowLabelsThen(function () {
+        var svgEl = getSankeySvgRoot(gd);
+        if (!svgEl) {
+          reject(new Error('SVG Sankey introuvable.'));
+          return;
+        }
+        rasterSankeySvgToPngBlob(svgEl, 1400, 1000, 2, function (err, blob) {
+          if (err || !blob) {
+            reject(err || new Error('Export PDF impossible.'));
+            return;
+          }
+          var reader = new FileReader();
+          reader.onload = function () {
+            try {
+              var dataUrl = reader.result;
+              var pdf = new JsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+              var pageW = pdf.internal.pageSize.getWidth();
+              var pageH = pdf.internal.pageSize.getHeight();
+              pdf.addImage(dataUrl, 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
+              pdf.save(state.fileName + '.pdf');
+              resolve();
+            } catch (e2) {
+              reject(e2);
+            }
+          };
+          reader.onerror = function () {
+            reject(new Error('Lecture PNG pour PDF impossible.'));
+          };
+          reader.readAsDataURL(blob);
+        });
+      });
     });
   }
 

@@ -31,6 +31,27 @@
   fill: #161616;
 }
 
+.sankey-chart-wrap svg g.sankey-app-flow-value-wrap text {
+  font-weight: 700;
+  font-family: Marianne, Arial, sans-serif;
+  fill: #161616;
+}
+
+@media print {
+  .sankey-chart-wrap {
+    break-inside: avoid;
+    border: 1px solid #ccc;
+    background: #fff;
+  }
+
+  .sankey-chart-wrap svg text.sankey-app-flow-value,
+  .sankey-chart-wrap svg g.sankey-app-flow-value-wrap text {
+    fill: #161616 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
 .fr-callout--privacy {
   border-left: 4px solid var(--border-action-high-blue-france);
 }
