@@ -106,7 +106,54 @@
 
       <p class="fr-text--sm fr-text--grey fr-mt-2w" id="resume-donnees"></p>
 
-      <div class="fr-mt-4w sankey-chart-wrap">
+      <div class="sankey-frame-controls fr-mt-4w" id="zone-taille-apercu" aria-labelledby="legend-taille-apercu">
+        <fieldset class="fr-fieldset">
+          <legend class="fr-fieldset__legend fr-text--md" id="legend-taille-apercu">Taille de l’aperçu</legend>
+          <p class="fr-hint-text fr-mb-2w">
+            Ajustez le cadre gris : le diagramme occupe tout l’espace blanc à l’intérieur.
+          </p>
+          <div class="fr-grid-row fr-grid-row--gutters">
+            <div class="fr-col-12 fr-col-md-6">
+              <div class="fr-range-group">
+                <label class="fr-label" for="sankey-frame-width">
+                  Largeur du cadre
+                  <span class="fr-hint-text sankey-frame-size-val" id="sankey-frame-width-val">1200 px</span>
+                </label>
+                <input
+                  type="range"
+                  class="fr-range"
+                  id="sankey-frame-width"
+                  name="sankey-frame-width"
+                  min="600"
+                  max="3600"
+                  step="50"
+                  value="1200"
+                />
+              </div>
+            </div>
+            <div class="fr-col-12 fr-col-md-6">
+              <div class="fr-range-group">
+                <label class="fr-label" for="sankey-frame-height">
+                  Hauteur du cadre
+                  <span class="fr-hint-text sankey-frame-size-val" id="sankey-frame-height-val">720 px</span>
+                </label>
+                <input
+                  type="range"
+                  class="fr-range"
+                  id="sankey-frame-height"
+                  name="sankey-frame-height"
+                  min="400"
+                  max="2400"
+                  step="50"
+                  value="720"
+                />
+              </div>
+            </div>
+          </div>
+        </fieldset>
+      </div>
+
+      <div class="fr-mt-2w sankey-chart-wrap">
         <div id="chart" aria-label="Diagramme de Sankey"></div>
       </div>
 
