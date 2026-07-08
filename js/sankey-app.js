@@ -88,7 +88,62 @@
     linkValuesFontPx: 20,
     /** exact | k | M | Md — affichage des valeurs (rubans, infobulles, export HTML) */
     valueDisplayMode: 'exact',
+    /** Taille du cadre gris (px), contrôlée par les curseurs */
+    chartFrameWidth: 1200,
+    chartFrameHeight: 720,
   };
+
+  var FRAME_PADDING_PX = 24;
+
+  function readFrameSizeFromUi() {
+    var elW = document.getElementById('sankey-frame-width');
+    var elH = document.getElementById('sankey-frame-height');
+    var w = elW ? parseInt(elW.value, 10) : state.chartFrameWidth;
+    var h = elH ? parseInt(elH.value, 10) : state.chartFrameHeight;
+    if (!isFinite(w)) w = state.chartFrameWidth || 1200;
+    if (!isFinite(h)) h = state.chartFrameHeight || 720;
+    state.chartFrameWidth = Math.min(3600, Math.max(600, w));
+    state.chartFrameHeight = Math.min(2400, Math.max(400, h));
+    if (elW && String(elW.value) !== String(state.chartFrameWidth)) elW.value = String(state.chartFrameWidth);
+    if (elH && String(elH.value) !== String(state.chartFrameHeight)) elH.value = String(state.chartFrameHeight);
+    updateFrameSizeLabels();
+  }
+
+  function updateFrameSizeLabels() {
+    var lw = document.getElementById('sankey-frame-width-val');
+    var lh = document.getElementById('sankey-frame-height-val');
+    if (lw) lw.textContent = state.chartFrameWidth + ' px';
+    if (lh) lh.textContent = state.chartFrameHeight + ' px';
+  }
+
+  function getChartInnerDimensions() {
+    return {
+      width: Math.max(320, state.chartFrameWidth - FRAME_PADDING_PX),
+      height: Math.max(240, state.chartFrameHeight - FRAME_PADDING_PX),
+    };
+  }
+
+  /** Initialise les curseurs à partir des dimensions recommandées pour le graphe. */
+  function initFrameSizeFromMetrics(metrics) {
+    if (!metrics) return;
+    var elW = document.getElementById('sankey-frame-width');
+    var elH = document.getElementById('sankey-frame-height');
+    var fw = metrics.width + FRAME_PADDING_PX;
+    var fh = metrics.height + FRAME_PADDING_PX;
+    state.chartFrameWidth = Math.min(3600, Math.max(600, fw));
+    state.chartFrameHeight = Math.min(2400, Math.max(400, fh));
+    if (elW) {
+      elW.min = String(Math.max(600, state.chartFrameWidth - 500));
+      elW.max = '3600';
+      elW.value = String(state.chartFrameWidth);
+    }
+    if (elH) {
+      elH.min = String(Math.max(400, state.chartFrameHeight - 400));
+      elH.max = '2400';
+      elH.value = String(state.chartFrameHeight);
+    }
+    updateFrameSizeLabels();
+  }
 
   function linkPairKey(sourceLabel, targetLabel) {
     return sourceLabel + '\0' + targetLabel;
@@ -716,20 +771,42 @@
     };
   }
 
-  function applyPreviewContainerSize(metrics) {
+  function applyPreviewContainerSize() {
     var wrap = document.querySelector('.sankey-chart-wrap');
-    var chart = document.getElementById('chart');
-    if (!wrap || !metrics) return;
-    var pad = 24;
-    var viewportCap = Math.round(window.innerHeight * 0.9);
-    var frameMin = Math.min(metrics.height + pad, Math.max(576, viewportCap));
-    wrap.style.minHeight = frameMin + 'px';
-    wrap.style.height = '';
-    wrap.style.maxHeight = viewportCap + 'px';
-    if (chart) {
-      chart.style.width = metrics.width + 'px';
-      chart.style.height = metrics.height + 'px';
-      chart.style.maxWidth = 'none';
+    if (!wrap) return;
+    readFrameSizeFromUi();
+    wrap.style.width = '100%';
+    wrap.style.maxWidth = state.chartFrameWidth + 'px';
+    wrap.style.height = state.chartFrameHeight + 'px';
+    wrap.style.minHeight = state.chartFrameHeight + 'px';
+  }
+
+  function onFrameSizeChange() {
+    readFrameSizeFromUi();
+    applyPreviewContainerSize();
+    var inner = getChartInnerDimensions();
+    if (state.layout) {
+      state.layout.width = inner.width;
+      state.layout.height = inner.height;
+      state.layout.meta = Object.assign({}, state.layout.meta || {}, {
+        sankeyChartWidth: inner.width,
+        sankeyChartHeight: inner.height,
+        sankeyFrameWidth: state.chartFrameWidth,
+        sankeyFrameHeight: state.chartFrameHeight,
+      });
+    }
+    var gd = document.getElementById('chart');
+    if (gd && window.Plotly && gd._fullLayout) {
+      var rel = window.Plotly.relayout(gd, { width: inner.width, height: inner.height });
+      if (rel && typeof rel.then === 'function') {
+        rel.then(function () {
+          requestAnimationFrame(syncFlowValueLabels);
+        });
+      } else {
+        requestAnimationFrame(syncFlowValueLabels);
+      }
+    } else if (state.trace) {
+      renderPlot();
     }
   }
 
@@ -834,12 +911,14 @@
     if (!metrics) {
       metrics = computeSankeyLayoutMetrics({ labels: [''], link: { source: [], target: [], value: [] } });
     }
+    readFrameSizeFromUi();
+    var inner = getChartInnerDimensions();
     return {
       font: { family: 'Marianne, arial, sans-serif', size: 13, color: '#161616' },
       paper_bgcolor: '#ffffff',
       plot_bgcolor: '#ffffff',
-      width: metrics.width,
-      height: metrics.height,
+      width: inner.width,
+      height: inner.height,
       margin: metrics.margin,
       autosize: false,
       hoverlabel: {
@@ -855,8 +934,10 @@
         sankeyLinkValuesFontPx: state.linkValuesFontPx,
         sankeyVertical: state.verticalSankey,
         sankeyValueDisplayMode: state.valueDisplayMode,
-        sankeyChartWidth: metrics.width,
-        sankeyChartHeight: metrics.height,
+        sankeyChartWidth: inner.width,
+        sankeyChartHeight: inner.height,
+        sankeyFrameWidth: state.chartFrameWidth,
+        sankeyFrameHeight: state.chartFrameHeight,
       },
     };
   }
@@ -1089,7 +1170,7 @@
   function renderPlot() {
     if (!window.Plotly || !state.trace) return;
     bumpDataRevision();
-    if (state.layoutMetrics) applyPreviewContainerSize(state.layoutMetrics);
+    if (state.layoutMetrics) applyPreviewContainerSize();
     var gd = document.getElementById('chart');
     ensureSankeyFlowLabelHooks(gd);
     var cfg = {
@@ -1220,8 +1301,8 @@
           reject(new Error('SVG Sankey introuvable.'));
           return;
         }
-        var m = state.layoutMetrics || { width: 1600, height: 1000 };
-        rasterSankeySvgToPngBlob(svgEl, m.width, m.height, 2, function (err, blob) {
+        var inner = getChartInnerDimensions();
+        rasterSankeySvgToPngBlob(svgEl, inner.width, inner.height, 2, function (err, blob) {
           if (err || !blob) {
             reject(err || new Error('Export PNG impossible.'));
             return;
@@ -1244,11 +1325,11 @@
             reject(new Error('SVG introuvable.'));
             return;
           }
-          var mSvg = state.layoutMetrics || { width: 1600, height: 1000 };
+          var innerSvg = getChartInnerDimensions();
           var cloneSvg = svgEl.cloneNode(true);
           cloneSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-          cloneSvg.setAttribute('width', String(mSvg.width));
-          cloneSvg.setAttribute('height', String(mSvg.height));
+          cloneSvg.setAttribute('width', String(innerSvg.width));
+          cloneSvg.setAttribute('height', String(innerSvg.height));
           var raw = new XMLSerializer().serializeToString(cloneSvg);
           var xml =
             (raw.indexOf('<?xml') === 0 ? '' : '<?xml version="1.0" encoding="UTF-8"?>\n') + raw;
@@ -1273,8 +1354,8 @@
           reject(new Error('SVG Sankey introuvable.'));
           return;
         }
-        var mPdf = state.layoutMetrics || { width: 1600, height: 1000 };
-        rasterSankeySvgToPngBlob(svgEl, mPdf.width, mPdf.height, 2, function (err, blob) {
+        var innerPdf = getChartInnerDimensions();
+        rasterSankeySvgToPngBlob(svgEl, innerPdf.width, innerPdf.height, 2, function (err, blob) {
           if (err || !blob) {
             reject(err || new Error('Export PDF impossible.'));
             return;
@@ -1389,6 +1470,7 @@
     state.linkColorKey = 'bleu_france';
     state.graph = buildSankeyGraph(state.links);
     state.trace = makeTrace(state.graph);
+    initFrameSizeFromMetrics(state.layoutMetrics);
     state.layout = makeLayout(state.graph);
     state.fileName = 'apercu-dsfr';
     populateNodeColorTable();
@@ -1615,6 +1697,7 @@
       state.links = aggLinks;
       state.graph = buildSankeyGraph(aggLinks);
       state.trace = makeTrace(state.graph);
+      initFrameSizeFromMetrics(state.layoutMetrics);
       state.layout = makeLayout(state.graph);
       populateNodeColorTable();
       populateLinkColorTable();
@@ -1705,6 +1788,17 @@
         state.linkColorOverrides = Object.create(null);
         refreshStyleFromUi();
       });
+
+    var frameW = document.getElementById('sankey-frame-width');
+    var frameH = document.getElementById('sankey-frame-height');
+    if (frameW) {
+      frameW.addEventListener('input', onFrameSizeChange);
+      frameW.addEventListener('change', onFrameSizeChange);
+    }
+    if (frameH) {
+      frameH.addEventListener('input', onFrameSizeChange);
+      frameH.addEventListener('change', onFrameSizeChange);
+    }
 
     var labelResizeTimer = null;
     if (typeof ResizeObserver !== 'undefined') {
