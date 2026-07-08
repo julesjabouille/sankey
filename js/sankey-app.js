@@ -109,11 +109,37 @@
     updateFrameSizeLabels();
   }
 
+  function syncRangeChrome(inputId) {
+    var input = document.getElementById(inputId);
+    if (!input) return;
+    var output = document.getElementById(inputId + '-output');
+    var minEl = document.getElementById(inputId + '-min');
+    var maxEl = document.getElementById(inputId + '-max');
+    if (output) output.textContent = input.value;
+    if (minEl) minEl.textContent = input.min;
+    if (maxEl) maxEl.textContent = input.max;
+    try {
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    } catch (e) {
+      /* IE11 */
+    }
+  }
+
+  function initDsfrRanges() {
+    if (window.dsfr && typeof window.dsfr.start === 'function') {
+      window.dsfr.start();
+    }
+    syncRangeChrome('sankey-frame-width');
+    syncRangeChrome('sankey-frame-height');
+  }
+
   function updateFrameSizeLabels() {
     var lw = document.getElementById('sankey-frame-width-val');
     var lh = document.getElementById('sankey-frame-height-val');
     if (lw) lw.textContent = state.chartFrameWidth + ' px';
     if (lh) lh.textContent = state.chartFrameHeight + ' px';
+    syncRangeChrome('sankey-frame-width');
+    syncRangeChrome('sankey-frame-height');
   }
 
   function getChartInnerDimensions() {
@@ -143,6 +169,7 @@
       elH.value = String(state.chartFrameHeight);
     }
     updateFrameSizeLabels();
+    initDsfrRanges();
   }
 
   function linkPairKey(sourceLabel, targetLabel) {
@@ -1812,6 +1839,7 @@
     }
 
     setFichierCsvStatut(false);
+    initDsfrRanges();
     runWhenPlotly(loadDemoPreview);
   }
 
