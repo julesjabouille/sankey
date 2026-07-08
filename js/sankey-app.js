@@ -86,6 +86,8 @@
     linkDisplayMin: 0,
     /** Taille (px) du texte des valeurs sur les rubans Sankey */
     linkValuesFontPx: 20,
+    /** Taille (px) des étiquettes de nœuds (layout Plotly) */
+    nodeLabelsFontPx: 13,
     /** exact | k | M | Md — affichage des valeurs (rubans, infobulles, export HTML) */
     valueDisplayMode: 'exact',
     /** Taille du cadre gris (px), contrôlée par les curseurs */
@@ -256,6 +258,11 @@
       elFontRub && String(elFontRub.value || '').trim() !== '' ? parseNumber(elFontRub.value) : NaN;
     if (!isFinite(fp)) fp = 20;
     state.linkValuesFontPx = Math.min(40, Math.max(8, Math.round(fp)));
+    var elFontLbl = document.getElementById('taille-police-etiquettes');
+    var fl =
+      elFontLbl && String(elFontLbl.value || '').trim() !== '' ? parseNumber(elFontLbl.value) : NaN;
+    if (!isFinite(fl)) fl = 13;
+    state.nodeLabelsFontPx = Math.min(32, Math.max(8, Math.round(fl)));
     var elFmt = document.getElementById('opt-format-valeurs');
     var dm = elFmt && elFmt.value ? String(elFmt.value) : 'exact';
     if (dm !== 'k' && dm !== 'M' && dm !== 'Md') dm = 'exact';
@@ -756,9 +763,13 @@
     var maxColumnNodes = estimateMaxColumnNodes(graph);
     var showValues = !!state.showLinkValues;
     var valueFont = state.linkValuesFontPx || 20;
+    var labelFont = state.nodeLabelsFontPx || 13;
 
     var sideMargin = Math.round(
-      Math.min(360, Math.max(72, 32 + maxLabelLen * 7.5 + (showValues ? valueFont * 0.35 : 0))),
+      Math.min(
+        360,
+        Math.max(72, 32 + maxLabelLen * (labelFont * 0.55) + (showValues ? valueFont * 0.35 : 0)),
+      ),
     );
     var vertMargin = Math.round(Math.min(120, Math.max(48, 36 + Math.ceil(nNodes / 6) * 4)));
     var nodePad = Math.round(
@@ -944,7 +955,7 @@
     readFrameSizeFromUi();
     var inner = getChartInnerDimensions();
     return {
-      font: { family: 'Marianne, arial, sans-serif', size: 13, color: '#161616' },
+      font: { family: 'Marianne, arial, sans-serif', size: state.nodeLabelsFontPx || 13, color: '#161616' },
       paper_bgcolor: '#ffffff',
       plot_bgcolor: '#ffffff',
       width: inner.width,
@@ -962,6 +973,7 @@
         sankeyShowFlowValues: state.showLinkValues,
         sankeyLinkDisplayMin: state.linkDisplayMin,
         sankeyLinkValuesFontPx: state.linkValuesFontPx,
+        sankeyNodeLabelsFontPx: state.nodeLabelsFontPx,
         sankeyVertical: state.verticalSankey,
         sankeyValueDisplayMode: state.valueDisplayMode,
         sankeyChartWidth: inner.width,
@@ -1169,6 +1181,7 @@
 
   function ensureSankeyFlowLabelHooks(gd) {
     if (!gd || gd._autovizSankeyFlowLabelHooks) return;
+    if (typeof gd.on !== 'function') return;
     gd._autovizSankeyFlowLabelHooks = true;
     function schedFlowLabels() {
       requestAnimationFrame(syncFlowValueLabels);
@@ -1214,13 +1227,17 @@
       window.Plotly.purge(gd);
       gd._autovizSankeyFlowLabelHooks = false;
     }
-    ensureSankeyFlowLabelHooks(gd);
     var cfg = {
       responsive: false,
       displaylogo: false,
       modeBarButtonsToRemove: ['lasso2d', 'select2d'],
     };
-    function afterDraw() {
+    function afterDraw(plotGd) {
+      var plotEl =
+        plotGd && typeof plotGd.on === 'function'
+          ? plotGd
+          : document.getElementById('chart');
+      ensureSankeyFlowLabelHooks(plotEl);
       requestAnimationFrame(function () {
         requestAnimationFrame(syncFlowValueLabels);
       });
@@ -1452,6 +1469,7 @@
       sankeyShowFlowValues: !!state.showLinkValues,
       sankeyLinkDisplayMin: state.linkDisplayMin || 0,
       sankeyLinkValuesFontPx: state.linkValuesFontPx,
+      sankeyNodeLabelsFontPx: state.nodeLabelsFontPx,
       sankeyVertical: !!state.verticalSankey,
       sankeyValueDisplayMode: state.valueDisplayMode || 'exact',
     });
@@ -1703,6 +1721,7 @@
         sankeyShowFlowValues: state.showLinkValues,
         sankeyLinkDisplayMin: state.linkDisplayMin || 0,
         sankeyLinkValuesFontPx: state.linkValuesFontPx,
+        sankeyNodeLabelsFontPx: state.nodeLabelsFontPx,
         sankeyVertical: state.verticalSankey,
         sankeyValueDisplayMode: state.valueDisplayMode || 'exact',
       });
@@ -1818,6 +1837,14 @@
       tailleRub.addEventListener('change', refreshStyleFromUi);
       tailleRub.addEventListener('input', function () {
         updateFlowValueLabelsMetaFromUi();
+      });
+    }
+
+    var tailleEtq = document.getElementById('taille-police-etiquettes');
+    if (tailleEtq) {
+      tailleEtq.addEventListener('change', refreshStyleFromUi);
+      tailleEtq.addEventListener('input', function () {
+        if (state.graph) refreshStyleFromUi();
       });
     }
 
