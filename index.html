@@ -185,9 +185,9 @@
             Personnalisation — couleurs DSFR
           </h2>
           <p class="fr-text--sm fr-mb-3w" id="zone-personnalisation">
-            Ajustez l’aperçu ci-dessus : disposition, format des nombres, valeurs sur les rubans (taille), seuil
-            d’affichage des flux. Les couleurs par flux et par nœud (liste déroulante et aperçu) s’affichent après
-            chargement d’un fichier CSV.
+            Ajustez l’aperçu ci-dessus : disposition, taille des étiquettes et des valeurs sur les rubans, format
+            des nombres, seuil d’affichage des flux. Les couleurs par flux et par nœud (liste déroulante et aperçu)
+            s’affichent après chargement d’un fichier CSV.
           </p>
           <div class="fr-fieldset__element fr-mb-3w">
             <div class="fr-grid-row fr-grid-row--gutters">
@@ -209,20 +209,41 @@
             </div>
           </div>
           <div class="fr-fieldset__element fr-mb-3w">
-            <div class="fr-input-group">
-              <label class="fr-label" for="taille-police-valeurs-rubans">Taille de police des valeurs sur les rubans</label>
-              <span class="fr-hint-text">En pixels, appliquée lorsque « Afficher les valeurs sur les rubans » est coché (8 à 40).</span>
-              <input
-                class="fr-input"
-                type="number"
-                id="taille-police-valeurs-rubans"
-                name="taille-police-valeurs-rubans"
-                inputmode="numeric"
-                min="8"
-                max="40"
-                step="1"
-                value="20"
-              />
+            <div class="fr-grid-row fr-grid-row--gutters">
+              <div class="fr-col-12 fr-col-md-6">
+                <div class="fr-input-group">
+                  <label class="fr-label" for="taille-police-etiquettes">Taille de police des étiquettes</label>
+                  <span class="fr-hint-text">Noms des nœuds sur le diagramme (8 à 32 px).</span>
+                  <input
+                    class="fr-input"
+                    type="number"
+                    id="taille-police-etiquettes"
+                    name="taille-police-etiquettes"
+                    inputmode="numeric"
+                    min="8"
+                    max="32"
+                    step="1"
+                    value="13"
+                  />
+                </div>
+              </div>
+              <div class="fr-col-12 fr-col-md-6">
+                <div class="fr-input-group">
+                  <label class="fr-label" for="taille-police-valeurs-rubans">Taille de police des valeurs sur les rubans</label>
+                  <span class="fr-hint-text">Appliquée lorsque « Afficher les valeurs sur les rubans » est coché (8 à 40 px).</span>
+                  <input
+                    class="fr-input"
+                    type="number"
+                    id="taille-police-valeurs-rubans"
+                    name="taille-police-valeurs-rubans"
+                    inputmode="numeric"
+                    min="8"
+                    max="40"
+                    step="1"
+                    value="20"
+                  />
+                </div>
+              </div>
             </div>
           </div>
           <div class="fr-fieldset__element fr-mb-3w">
