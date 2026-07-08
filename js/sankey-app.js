@@ -94,6 +94,7 @@
   };
 
   var FRAME_PADDING_PX = 24;
+  var suppressFrameSizeHandler = false;
 
   function readFrameSizeFromUi() {
     var elW = document.getElementById('sankey-frame-width');
@@ -118,11 +119,6 @@
     if (output) output.textContent = input.value;
     if (minEl) minEl.textContent = input.min;
     if (maxEl) maxEl.textContent = input.max;
-    try {
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    } catch (e) {
-      /* IE11 */
-    }
   }
 
   function initDsfrRanges() {
@@ -153,6 +149,7 @@
     var elH = document.getElementById('sankey-frame-height');
     var fw = metrics.width + FRAME_PADDING_PX;
     var fh = metrics.height + FRAME_PADDING_PX;
+    suppressFrameSizeHandler = true;
     state.chartFrameWidth = Math.min(3600, Math.max(600, fw));
     state.chartFrameHeight = Math.min(2400, Math.max(400, fh));
     if (elW) {
@@ -166,6 +163,7 @@
       elH.value = String(state.chartFrameHeight);
     }
     updateFrameSizeLabels();
+    suppressFrameSizeHandler = false;
     initDsfrRanges();
   }
 
@@ -797,15 +795,23 @@
 
   function applyPreviewContainerSize() {
     var wrap = document.querySelector('.sankey-chart-wrap');
+    var chart = document.getElementById('chart');
     if (!wrap) return;
     readFrameSizeFromUi();
+    var inner = getChartInnerDimensions();
     wrap.style.width = '100%';
     wrap.style.maxWidth = state.chartFrameWidth + 'px';
     wrap.style.height = state.chartFrameHeight + 'px';
     wrap.style.minHeight = state.chartFrameHeight + 'px';
+    if (chart) {
+      chart.style.width = '100%';
+      chart.style.height = inner.height + 'px';
+      chart.style.minHeight = inner.height + 'px';
+    }
   }
 
   function onFrameSizeChange() {
+    if (suppressFrameSizeHandler) return;
     readFrameSizeFromUi();
     applyPreviewContainerSize();
     var inner = getChartInnerDimensions();
@@ -1197,11 +1203,17 @@
     if (state.layout) state.layout.datarevision = Date.now();
   }
 
-  function renderPlot() {
-    if (!window.Plotly || !state.trace) return;
+  function renderPlot(options) {
+    options = options || {};
+    if (!window.Plotly || !state.trace || !state.layout) return;
     bumpDataRevision();
-    if (state.layoutMetrics) applyPreviewContainerSize();
+    applyPreviewContainerSize();
     var gd = document.getElementById('chart');
+    if (!gd) return;
+    if (options.forceNew && gd._fullData && gd._fullData.length > 0) {
+      window.Plotly.purge(gd);
+      gd._autovizSankeyFlowLabelHooks = false;
+    }
     ensureSankeyFlowLabelHooks(gd);
     var cfg = {
       responsive: false,
@@ -1213,12 +1225,17 @@
         requestAnimationFrame(syncFlowValueLabels);
       });
     }
-    var needsNewPlot = !gd._fullData || gd._fullData.length === 0;
+    var needsNewPlot = options.forceNew || !gd._fullData || gd._fullData.length === 0;
     var pr = needsNewPlot
       ? window.Plotly.newPlot(gd, [state.trace], state.layout, cfg)
       : window.Plotly.react(gd, [state.trace], state.layout, cfg);
-    if (pr && typeof pr.then === 'function') pr.then(afterDraw).catch(afterDraw);
-    else afterDraw();
+    if (pr && typeof pr.then === 'function') {
+      pr.then(afterDraw).catch(function () {
+        window.Plotly.purge(gd);
+        gd._autovizSankeyFlowLabelHooks = false;
+        window.Plotly.newPlot(gd, [state.trace], state.layout, cfg).then(afterDraw).catch(afterDraw);
+      });
+    } else afterDraw();
   }
 
   /** Laisse le navigateur peindre les <text> sur le SVG avant capture (Plotly seul ne les voit pas). */
@@ -1500,12 +1517,12 @@
     state.linkColorKey = 'bleu_france';
     state.graph = buildSankeyGraph(state.links);
     state.trace = makeTrace(state.graph);
-    initFrameSizeFromMetrics(state.layoutMetrics);
     state.layout = makeLayout(state.graph);
+    initFrameSizeFromMetrics(state.layoutMetrics);
     state.fileName = 'apercu-dsfr';
     populateNodeColorTable();
     populateLinkColorTable();
-    renderPlot();
+    renderPlot({ forceNew: true });
     updateResume();
     var btnE = document.getElementById('btn-exporter');
     if (btnE) btnE.disabled = false;
@@ -1698,7 +1715,7 @@
     readDiagramOptions();
     state.trace = makeTrace(state.graph);
     state.layout = makeLayout(state.graph);
-    renderPlot();
+    renderPlot({ forceNew: true });
     populateNodeColorTable();
     populateLinkColorTable();
   }
@@ -1727,13 +1744,22 @@
       state.links = aggLinks;
       state.graph = buildSankeyGraph(aggLinks);
       state.trace = makeTrace(state.graph);
-      initFrameSizeFromMetrics(state.layoutMetrics);
       state.layout = makeLayout(state.graph);
+      initFrameSizeFromMetrics(state.layoutMetrics);
       populateNodeColorTable();
       populateLinkColorTable();
-      renderPlot();
+      try {
+        renderPlot({ forceNew: true });
+      } catch (renderErr) {
+        showAlert(
+          (renderErr && renderErr.message) || 'Impossible d’afficher le diagramme après import.',
+          'error',
+        );
+        return;
+      }
       updateResume();
       setFichierCsvStatut(true);
+      if (input) input.value = '';
     });
   }
 
