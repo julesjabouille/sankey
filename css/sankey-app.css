@@ -30,10 +30,30 @@
   height: 100% !important;
 }
 
-.sankey-frame-controls .sankey-frame-size-val {
-  display: inline-block;
-  font-variant-numeric: tabular-nums;
-  min-width: 5rem;
+.sankey-frame-controls {
+  border: 1px solid var(--border-default-grey, #ddd);
+  padding: 1rem 1.25rem;
+  background: var(--background-alt-grey, #f6f6f6);
+}
+
+.sankey-frame-controls .fr-range-group {
+  margin-bottom: 0.5rem;
+}
+
+/* Curseurs visibles même si le JS DSFR n’a pas encore initialisé le composant */
+.sankey-frame-controls .fr-range input[type='range'] {
+  display: block;
+  width: 100%;
+  min-height: 2.5rem;
+  margin-top: 0.25rem;
+  cursor: pointer;
+  accent-color: #000091;
+}
+
+.sankey-frame-controls .fr-range[data-fr-js-range] input[type='range'] {
+  min-height: var(--thumb-size, 1.5rem);
+  margin-top: 0;
+  accent-color: unset;
 }
 
 /* Libellés de valeur sur les rubans Sankey (SVG) — taille via attribut font-size dans le JS */
@@ -66,6 +86,12 @@
 
 .fr-callout--privacy {
   border-left: 4px solid var(--border-action-high-blue-france);
+}
+
+.sankey-upload-actions .sankey-browse-busy {
+  pointer-events: none;
+  opacity: 0.65;
+  cursor: wait;
 }
 
 .sankey-upload-zone {
