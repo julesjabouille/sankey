@@ -624,11 +624,122 @@
     });
   }
 
+  /** Nombre maximal de nœuds sur une même colonne (niveau topologique). */
+  function estimateMaxColumnNodes(graph) {
+    var n = graph.labels.length;
+    if (n === 0) return 1;
+    var level = new Array(n);
+    for (var i = 0; i < n; i++) level[i] = 0;
+    var changed = true;
+    var iter = 0;
+    while (changed && iter < n + 5) {
+      changed = false;
+      iter++;
+      for (var j = 0; j < graph.link.source.length; j++) {
+        var s = graph.link.source[j];
+        var t = graph.link.target[j];
+        if (level[t] < level[s] + 1) {
+          level[t] = level[s] + 1;
+          changed = true;
+        }
+      }
+    }
+    var countByLevel = Object.create(null);
+    var max = 1;
+    for (var k = 0; k < n; k++) {
+      var L = level[k];
+      countByLevel[L] = (countByLevel[L] || 0) + 1;
+      if (countByLevel[L] > max) max = countByLevel[L];
+    }
+    return max;
+  }
+
+  /**
+   * Dimensions et marges adaptées au graphe : évite chevauchements de nœuds et de libellés
+   * (aperçu et exports utilisent les mêmes valeurs).
+   */
+  function computeSankeyLayoutMetrics(graph) {
+    if (!graph || !graph.labels || !graph.labels.length) {
+      return {
+        width: 1280,
+        height: 720,
+        margin: { l: 80, r: 80, t: 48, b: 48 },
+        nodePad: 24,
+        nodeThickness: 22,
+      };
+    }
+    readDiagramOptions();
+    var labels = graph.labels;
+    var nNodes = labels.length;
+    var nLinks = graph.link ? graph.link.source.length : 0;
+    var maxLabelLen = 0;
+    for (var i = 0; i < labels.length; i++) {
+      maxLabelLen = Math.max(maxLabelLen, String(labels[i]).length);
+    }
+    var maxColumnNodes = estimateMaxColumnNodes(graph);
+    var showValues = !!state.showLinkValues;
+    var valueFont = state.linkValuesFontPx || 20;
+
+    var sideMargin = Math.round(
+      Math.min(360, Math.max(72, 32 + maxLabelLen * 7.5 + (showValues ? valueFont * 0.35 : 0))),
+    );
+    var vertMargin = Math.round(Math.min(120, Math.max(48, 36 + Math.ceil(nNodes / 6) * 4)));
+    var nodePad = Math.round(
+      Math.min(48, Math.max(22, 16 + maxColumnNodes * 2.2 + nNodes * 0.35)),
+    );
+    var nodeThickness = nNodes > 30 ? 14 : nNodes > 20 ? 16 : nNodes > 12 ? 18 : 22;
+
+    var width;
+    var height;
+    if (state.verticalSankey) {
+      width = Math.round(
+        Math.min(3200, Math.max(1100, 880 + maxLabelLen * 11 + maxColumnNodes * 28 + nLinks * 5)),
+      );
+      height = Math.round(
+        Math.min(3600, Math.max(900, 640 + nNodes * 44 + nLinks * 10 + maxColumnNodes * 18)),
+      );
+    } else {
+      width = Math.round(
+        Math.min(3600, Math.max(1200, 1000 + maxLabelLen * 11 + nLinks * 7 + maxColumnNodes * 16)),
+      );
+      height = Math.round(
+        Math.min(3200, Math.max(680, 520 + maxColumnNodes * 42 + nNodes * 14 + (showValues ? 40 : 0))),
+      );
+    }
+
+    return {
+      width: width,
+      height: height,
+      margin: { l: sideMargin, r: sideMargin, t: vertMargin, b: vertMargin },
+      nodePad: nodePad,
+      nodeThickness: nodeThickness,
+    };
+  }
+
+  function applyPreviewContainerSize(metrics) {
+    var wrap = document.querySelector('.sankey-chart-wrap');
+    var chart = document.getElementById('chart');
+    if (!wrap || !metrics) return;
+    var pad = 24;
+    var viewportCap = Math.round(window.innerHeight * 0.9);
+    var frameMin = Math.min(metrics.height + pad, Math.max(576, viewportCap));
+    wrap.style.minHeight = frameMin + 'px';
+    wrap.style.height = '';
+    wrap.style.maxHeight = viewportCap + 'px';
+    if (chart) {
+      chart.style.width = metrics.width + 'px';
+      chart.style.height = metrics.height + 'px';
+      chart.style.maxWidth = 'none';
+    }
+  }
+
   function makeTrace(graph) {
     readDiagramOptions();
     var disp = getDisplaySankeyGraphResult(graph);
     var displayGraph = disp.g;
     var displayFiltered = disp.filtered;
+    var metrics = computeSankeyLayoutMetrics(displayGraph);
+    state.layoutMetrics = metrics;
     var nodeColors = buildNodeColors(displayGraph);
     var linkColors = buildLinkColorsArray(displayGraph);
     var hoverLabelNode = {
@@ -701,8 +812,8 @@
       valueformat: '.0f',
       valuesuffix: '',
       node: {
-        pad: 18,
-        thickness: 22,
+        pad: metrics.nodePad,
+        thickness: metrics.nodeThickness,
         line: { color: '#3A3A3A', width: 0.35 },
         label: nodeLabels,
         color: nodeColors,
@@ -714,14 +825,23 @@
     };
   }
 
-  function makeLayout() {
+  function makeLayout(graph) {
     readDiagramOptions();
+    var g = graph || state.graph;
+    var disp = g ? getDisplaySankeyGraphResult(g).g : null;
+    var metrics = disp ? computeSankeyLayoutMetrics(disp) : state.layoutMetrics;
+    if (metrics) state.layoutMetrics = metrics;
+    if (!metrics) {
+      metrics = computeSankeyLayoutMetrics({ labels: [''], link: { source: [], target: [], value: [] } });
+    }
     return {
       font: { family: 'Marianne, arial, sans-serif', size: 13, color: '#161616' },
       paper_bgcolor: '#ffffff',
       plot_bgcolor: '#ffffff',
-      margin: { l: 24, r: 24, t: 24, b: 24 },
-      autosize: true,
+      width: metrics.width,
+      height: metrics.height,
+      margin: metrics.margin,
+      autosize: false,
       hoverlabel: {
         bgcolor: '#f6f6f6',
         bordercolor: '#000091',
@@ -735,6 +855,8 @@
         sankeyLinkValuesFontPx: state.linkValuesFontPx,
         sankeyVertical: state.verticalSankey,
         sankeyValueDisplayMode: state.valueDisplayMode,
+        sankeyChartWidth: metrics.width,
+        sankeyChartHeight: metrics.height,
       },
     };
   }
@@ -798,7 +920,13 @@
       plotlyCdn +
       '"><\/script>\n' +
       '</head>\n<body style="margin:0;font-family:Marianne,system-ui,sans-serif;">\n' +
-      '<div id="g" style="width:100%;min-height:90vh;"></div>\n' +
+      '<div id="g" style="width:100%;min-width:' +
+      (payload.layout && payload.layout.width ? String(payload.layout.width) : '1200') +
+      'px;min-height:' +
+      (payload.layout && payload.layout.height ? String(payload.layout.height) : '720') +
+      'px;height:' +
+      (payload.layout && payload.layout.height ? String(payload.layout.height) : '720') +
+      'px;"></div>\n' +
       '<script>\n' +
       '(function(){\n' +
       'function fromB64(b64){\n' +
@@ -880,7 +1008,8 @@
       '}\n' +
       'function run(){\n' +
       '  if (!window.Plotly){ setTimeout(run, 50); return; }\n' +
-      '  var nl = Plotly.newPlot("g", payload.data, payload.layout, {responsive:true, displaylogo:false});\n' +
+      '  var cfg = { responsive: false, displaylogo: false };\n' +
+      '  var nl = Plotly.newPlot("g", payload.data, payload.layout, cfg);\n' +
       '  function done(gd){\n' +
       '    var el = (gd && gd.querySelector) ? gd : document.getElementById("g");\n' +
       '    function runLbl(){ setTimeout(function(){ applySankeyFlowLabels(el); }, 80); }\n' +
@@ -960,10 +1089,11 @@
   function renderPlot() {
     if (!window.Plotly || !state.trace) return;
     bumpDataRevision();
+    if (state.layoutMetrics) applyPreviewContainerSize(state.layoutMetrics);
     var gd = document.getElementById('chart');
     ensureSankeyFlowLabelHooks(gd);
     var cfg = {
-      responsive: true,
+      responsive: false,
       displaylogo: false,
       modeBarButtonsToRemove: ['lasso2d', 'select2d'],
     };
@@ -1090,7 +1220,8 @@
           reject(new Error('SVG Sankey introuvable.'));
           return;
         }
-        rasterSankeySvgToPngBlob(svgEl, 1280, 900, 2, function (err, blob) {
+        var m = state.layoutMetrics || { width: 1600, height: 1000 };
+        rasterSankeySvgToPngBlob(svgEl, m.width, m.height, 2, function (err, blob) {
           if (err || !blob) {
             reject(err || new Error('Export PNG impossible.'));
             return;
@@ -1113,7 +1244,12 @@
             reject(new Error('SVG introuvable.'));
             return;
           }
-          var raw = new XMLSerializer().serializeToString(svgEl);
+          var mSvg = state.layoutMetrics || { width: 1600, height: 1000 };
+          var cloneSvg = svgEl.cloneNode(true);
+          cloneSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+          cloneSvg.setAttribute('width', String(mSvg.width));
+          cloneSvg.setAttribute('height', String(mSvg.height));
+          var raw = new XMLSerializer().serializeToString(cloneSvg);
           var xml =
             (raw.indexOf('<?xml') === 0 ? '' : '<?xml version="1.0" encoding="UTF-8"?>\n') + raw;
           triggerDownload(state.fileName + '.svg', 'image/svg+xml;charset=utf-8', xml);
@@ -1137,7 +1273,8 @@
           reject(new Error('SVG Sankey introuvable.'));
           return;
         }
-        rasterSankeySvgToPngBlob(svgEl, 1400, 1000, 2, function (err, blob) {
+        var mPdf = state.layoutMetrics || { width: 1600, height: 1000 };
+        rasterSankeySvgToPngBlob(svgEl, mPdf.width, mPdf.height, 2, function (err, blob) {
           if (err || !blob) {
             reject(err || new Error('Export PDF impossible.'));
             return;
@@ -1168,9 +1305,16 @@
   function exportHtml() {
     readDiagramOptions();
     var gd = document.getElementById('chart');
-    var layout = state.layout;
+    var layout = state.layout ? JSON.parse(JSON.stringify(state.layout)) : {};
     var data0 = state.trace;
-    if (gd && gd.layout) layout = gd.layout;
+    if (gd && gd.layout) {
+      layout = Object.assign({}, gd.layout, {
+        width: state.layout && state.layout.width,
+        height: state.layout && state.layout.height,
+        margin: state.layout && state.layout.margin,
+        autosize: false,
+      });
+    }
     if (gd && gd.data && gd.data[0]) data0 = gd.data[0];
     var payload = {
       data: [JSON.parse(JSON.stringify(data0))],
@@ -1245,7 +1389,7 @@
     state.linkColorKey = 'bleu_france';
     state.graph = buildSankeyGraph(state.links);
     state.trace = makeTrace(state.graph);
-    state.layout = makeLayout();
+    state.layout = makeLayout(state.graph);
     state.fileName = 'apercu-dsfr';
     populateNodeColorTable();
     populateLinkColorTable();
@@ -1441,15 +1585,7 @@
     if (!state.graph) return;
     readDiagramOptions();
     state.trace = makeTrace(state.graph);
-    if (state.layout) {
-      state.layout.meta = Object.assign({}, state.layout.meta || {}, {
-        sankeyShowFlowValues: state.showLinkValues,
-        sankeyLinkDisplayMin: state.linkDisplayMin || 0,
-        sankeyLinkValuesFontPx: state.linkValuesFontPx,
-        sankeyVertical: state.verticalSankey,
-        sankeyValueDisplayMode: state.valueDisplayMode || 'exact',
-      });
-    }
+    state.layout = makeLayout(state.graph);
     renderPlot();
     populateNodeColorTable();
     populateLinkColorTable();
@@ -1479,7 +1615,7 @@
       state.links = aggLinks;
       state.graph = buildSankeyGraph(aggLinks);
       state.trace = makeTrace(state.graph);
-      state.layout = makeLayout();
+      state.layout = makeLayout(state.graph);
       populateNodeColorTable();
       populateLinkColorTable();
       renderPlot();
@@ -1547,7 +1683,7 @@
 
     var tailleRub = document.getElementById('taille-police-valeurs-rubans');
     if (tailleRub) {
-      tailleRub.addEventListener('change', updateFlowValueLabelsMetaFromUi);
+      tailleRub.addEventListener('change', refreshStyleFromUi);
       tailleRub.addEventListener('input', function () {
         updateFlowValueLabelsMetaFromUi();
       });
