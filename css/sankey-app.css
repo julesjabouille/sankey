@@ -198,7 +198,7 @@
     return gd.querySelector('svg');
   }
 
-  /** Centre du ruban : milieu du rectangle englobant du flux (hauteur × largeur), entre les nœuds visuellement. */
+  /** Centre du ruban center : milieu du rectangle englobant du flux (hauteur × largeur), entre les nœuds visuellement. */
   function pathLinkLabelAnchor(pathEl) {
     try {
       var bbox = pathEl.getBBox();
