@@ -11,6 +11,7 @@
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/component/range/range.min.css" />
     <link rel="stylesheet" href="./css/sankey-app.css" />
     <script defer src="https://cdn.plot.ly/plotly-2.35.3.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -22,6 +23,7 @@
         <ul class="fr-skiplinks__list">
           <li><a class="fr-link" href="#contenu-principal">Contenu</a></li>
           <li><a class="fr-link" href="#zone-fichier">Fichier CSV</a></li>
+          <li><a class="fr-link" href="#zone-taille-apercu">Taille de l’aperçu</a></li>
           <li><a class="fr-link" href="#zone-personnalisation">Personnalisation</a></li>
         </ul>
       </nav>
@@ -106,47 +108,62 @@
 
       <p class="fr-text--sm fr-text--grey fr-mt-2w" id="resume-donnees"></p>
 
-      <div class="sankey-frame-controls fr-mt-4w" id="zone-taille-apercu" aria-labelledby="legend-taille-apercu">
+      <div class="fr-mt-4w sankey-frame-controls" id="zone-taille-apercu" aria-labelledby="legend-taille-apercu">
         <fieldset class="fr-fieldset">
           <legend class="fr-fieldset__legend fr-text--md" id="legend-taille-apercu">Taille de l’aperçu</legend>
-          <p class="fr-hint-text fr-mb-2w">
-            Ajustez le cadre gris : le diagramme occupe tout l’espace blanc à l’intérieur.
+          <p class="fr-hint-text fr-mb-3w">
+            Déplacez les curseurs pour agrandir ou rétrécir le cadre gris sous cette section. Le diagramme occupe tout
+            l’espace blanc à l’intérieur.
           </p>
           <div class="fr-grid-row fr-grid-row--gutters">
             <div class="fr-col-12 fr-col-md-6">
               <div class="fr-range-group">
-                <label class="fr-label" for="sankey-frame-width">
+                <label class="fr-label" id="sankey-frame-width-label" for="sankey-frame-width">
                   Largeur du cadre
-                  <span class="fr-hint-text sankey-frame-size-val" id="sankey-frame-width-val">1200 px</span>
+                  <span class="fr-hint-text"
+                    >Valeur actuelle : <strong id="sankey-frame-width-val">1200 px</strong></span
+                  >
                 </label>
-                <input
-                  type="range"
-                  class="fr-range"
-                  id="sankey-frame-width"
-                  name="sankey-frame-width"
-                  min="600"
-                  max="3600"
-                  step="50"
-                  value="1200"
-                />
+                <div class="fr-range fr-range--step" id="sankey-frame-width-range">
+                  <span class="fr-range__output" id="sankey-frame-width-output">1200</span>
+                  <input
+                    type="range"
+                    id="sankey-frame-width"
+                    name="sankey-frame-width"
+                    min="600"
+                    max="3600"
+                    step="50"
+                    value="1200"
+                    aria-labelledby="sankey-frame-width-label"
+                  />
+                  <span class="fr-range__min" id="sankey-frame-width-min" aria-hidden="true">600</span>
+                  <span class="fr-range__max" id="sankey-frame-width-max" aria-hidden="true">3600</span>
+                </div>
               </div>
             </div>
             <div class="fr-col-12 fr-col-md-6">
               <div class="fr-range-group">
-                <label class="fr-label" for="sankey-frame-height">
+                <label class="fr-label" id="sankey-frame-height-label" for="sankey-frame-height">
                   Hauteur du cadre
-                  <span class="fr-hint-text sankey-frame-size-val" id="sankey-frame-height-val">720 px</span>
+                  <span class="fr-hint-text"
+                    >Valeur actuelle : <strong id="sankey-frame-height-val">720 px</strong></span
+                  >
                 </label>
-                <input
-                  type="range"
-                  class="fr-range"
-                  id="sankey-frame-height"
-                  name="sankey-frame-height"
-                  min="400"
-                  max="2400"
-                  step="50"
-                  value="720"
-                />
+                <div class="fr-range fr-range--step" id="sankey-frame-height-range">
+                  <span class="fr-range__output" id="sankey-frame-height-output">720</span>
+                  <input
+                    type="range"
+                    id="sankey-frame-height"
+                    name="sankey-frame-height"
+                    min="400"
+                    max="2400"
+                    step="50"
+                    value="720"
+                    aria-labelledby="sankey-frame-height-label"
+                  />
+                  <span class="fr-range__min" id="sankey-frame-height-min" aria-hidden="true">400</span>
+                  <span class="fr-range__max" id="sankey-frame-height-max" aria-hidden="true">2400</span>
+                </div>
               </div>
             </div>
           </div>
@@ -326,6 +343,7 @@
     </footer>
 
     <script defer src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr/dsfr.nomodule.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/component/range/range.nomodule.min.js"></script>
     <script defer src="./js/sankey-app.js"></script>
   </body>
 </html>
